@@ -1,0 +1,52 @@
+name: Power Automate CI/CD
+
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch
+  workflow_dispatch: # Allows manual trigger of the workflow
+
+jobs:
+  export-import-solution:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Install Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+
+    - name: Install Power Platform CLI
+      run: npm install -g pac
+
+    - name: Authenticate to Source Environment
+      run: |
+        pac auth create --url ${{ secrets.SOURCE_ENV_URL }} \
+                        --client-id ${{ secrets.CLIENT_ID }} \
+                        --client-secret ${{ secrets.CLIENT_SECRET }} \
+                        --tenant-id ${{ secrets.TENANT_ID }}
+
+    - name: Export Solution from Source
+      run: |
+        pac solution export --name "MySolution" \
+                            --path "./MySolution.zip" \
+                            --managed false
+
+    - name: Authenticate to Target Environment
+      run: |
+        pac auth create --url ${{ secrets.TARGET_ENV_URL }} \
+                        --client-id ${{ secrets.CLIENT_ID }} \
+                        --client-secret ${{ secrets.CLIENT_SECRET }} \
+                        --tenant-id ${{ secrets.TENANT_ID }}
+
+    - name: Import Solution to Target
+      run: |
+        pac solution import --path "./MySolution.zip" \
+                            --overwrite
+
+    - name: Cleanup Exported Solution File
+      run: |
+        Remove-Item -Path "./MySolution.zip"
